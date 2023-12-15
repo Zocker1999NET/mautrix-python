@@ -6,7 +6,7 @@
 from typing import NewType, Union
 
 from ..primitive import JSON
-from ..util import Obj, deserializer
+from ..util import Obj, SerializerError, deserializer
 from .account_data import AccountDataEvent, AccountDataEventContent
 from .base import EventType, GenericEvent
 from .beeper import BeeperMessageStatusEvent, BeeperMessageStatusEventContent
@@ -64,31 +64,33 @@ EventContent = Union[
 @deserializer(Event)
 def deserialize_event(data: JSON) -> Event:
     event_type = EventType.find(data.get("type", None))
-    if event_type == EventType.ROOM_MESSAGE:
-        return MessageEvent.deserialize(data)
-    elif event_type == EventType.STICKER:
-        data.get("content", {})["msgtype"] = "m.sticker"
-        return MessageEvent.deserialize(data)
-    elif event_type == EventType.REACTION:
-        return ReactionEvent.deserialize(data)
-    elif event_type == EventType.ROOM_REDACTION:
-        return RedactionEvent.deserialize(data)
-    elif event_type == EventType.ROOM_ENCRYPTED:
-        return EncryptedEvent.deserialize(data)
-    elif event_type in voip_types.keys():
-        return CallEvent.deserialize(data, event_type=event_type)
-    elif event_type.is_to_device:
-        return ToDeviceEvent.deserialize(data)
-    elif event_type.is_state:
-        return StateEvent.deserialize(data)
-    elif event_type.is_account_data:
-        return AccountDataEvent.deserialize(data)
-    elif event_type.is_ephemeral:
-        return EphemeralEvent.deserialize(data)
-    elif event_type == EventType.BEEPER_MESSAGE_STATUS:
-        return BeeperMessageStatusEvent.deserialize(data)
-    else:
-        return GenericEvent.deserialize(data)
+    try:
+        if event_type == EventType.ROOM_MESSAGE:
+            return MessageEvent.deserialize(data)
+        elif event_type == EventType.STICKER:
+            data.get("content", {})["msgtype"] = "m.sticker"
+            return MessageEvent.deserialize(data)
+        elif event_type == EventType.REACTION:
+            return ReactionEvent.deserialize(data)
+        elif event_type == EventType.ROOM_REDACTION:
+            return RedactionEvent.deserialize(data)
+        elif event_type == EventType.ROOM_ENCRYPTED:
+            return EncryptedEvent.deserialize(data)
+        elif event_type in voip_types.keys():
+            return CallEvent.deserialize(data, event_type=event_type)
+        elif event_type.is_to_device:
+            return ToDeviceEvent.deserialize(data)
+        elif event_type.is_state:
+            return StateEvent.deserialize(data)
+        elif event_type.is_account_data:
+            return AccountDataEvent.deserialize(data)
+        elif event_type.is_ephemeral:
+            return EphemeralEvent.deserialize(data)
+        elif event_type == EventType.BEEPER_MESSAGE_STATUS:
+            return BeeperMessageStatusEvent.deserialize(data)
+    except SerializerError:
+        pass
+    return GenericEvent.deserialize(data)
 
 
 setattr(Event, "deserialize", deserialize_event)
